@@ -35,7 +35,7 @@ def pre_process(entity, batchsize):
 def main():
     seeding()
     # number of parallel agents
-    parallel_envs = 4
+    parallel_envs = 8
     # number of training episodes.
     # change this to higher number to experiment. say 30000.
     number_of_episodes = 1000
@@ -44,7 +44,7 @@ def main():
     # how many episodes to save policy and gif
     save_interval = 1000
     t = 0
-    
+
     # amplitude of OU noise
     # this slowly decreases to 0
     noise = 2
@@ -55,15 +55,15 @@ def main():
 
     log_path = os.getcwd()+"/log"
     model_dir= os.getcwd()+"/model_dir"
-    
+
     os.makedirs(model_dir, exist_ok=True)
 
     torch.set_num_threads(parallel_envs)
     env = envs.make_parallel_env(parallel_envs)
-    
+
     # keep 5000 episodes worth of replay
     buffer = ReplayBuffer(int(5000*episode_length))
-    
+
     # initialize policy and critic
     maddpg = MADDPG()
     logger = SummaryWriter(log_dir=log_path)
@@ -74,9 +74,9 @@ def main():
     # training loop
     # show progressbar
     import progressbar as pb
-    widget = ['episode: ', pb.Counter(),'/',str(number_of_episodes),' ', 
+    widget = ['episode: ', pb.Counter(),'/',str(number_of_episodes),' ',
               pb.Percentage(), ' ', pb.ETA(), ' ', pb.Bar(marker=pb.RotatingMarker()), ' ' ]
-    
+
     timer = pb.ProgressBar(widgets=widget, maxval=number_of_episodes).start()
 
     # use keep_awake to keep workspace from disconnecting
@@ -95,46 +95,46 @@ def main():
         save_info = ((episode) % save_interval < parallel_envs or episode==number_of_episodes-parallel_envs)
         frames = []
         tmax = 0
-        
+
         if save_info:
             frames.append(env.render('rgb_array'))
 
 
-        
+
         for episode_t in range(episode_length):
 
             t += parallel_envs
-            
+
 
             # explore = only explore for a certain number of episodes
             # action input needs to be transposed
             actions = maddpg.act(transpose_to_tensor(obs), noise=noise)
             noise *= noise_reduction
-            
+
             actions_array = torch.stack(actions).detach().numpy()
 
             # transpose the list of list
             # flip the first two indices
             # input to step requires the first index to correspond to number of parallel agents
             actions_for_env = np.rollaxis(actions_array,1)
-            
+
             # step forward one frame
             next_obs, next_obs_full, rewards, dones, info = env.step(actions_for_env)
-            
+
             # add data to buffer
             transition = (obs, obs_full, actions_for_env, rewards, next_obs, next_obs_full, dones)
-            
+
             buffer.push(transition)
-            
+
             reward_this_episode += rewards
 
             obs, obs_full = next_obs, next_obs_full
-            
+
             # save gif frame
             if save_info:
                 frames.append(env.render('rgb_array'))
                 tmax+=1
-        
+
         # update once after every episode_per_update
         if len(buffer) > batchsize and episode % episode_per_update < parallel_envs:
             for a_i in range(3):
@@ -142,8 +142,8 @@ def main():
                 maddpg.update(samples, a_i, logger)
             maddpg.update_targets() #soft update the target network towards the actual networks
 
-        
-        
+
+
         for i in range(parallel_envs):
             agent0_reward.append(reward_this_episode[i,0])
             agent1_reward.append(reward_this_episode[i,1])
@@ -168,11 +168,11 @@ def main():
                              'critic_optim_params' : maddpg.maddpg_agent[i].critic_optimizer.state_dict()}
                 save_dict_list.append(save_dict)
 
-                torch.save(save_dict_list, 
+                torch.save(save_dict_list,
                            os.path.join(model_dir, 'episode-{}.pt'.format(episode)))
-                
+
             # save gif files
-            imageio.mimsave(os.path.join(model_dir, 'episode-{}.gif'.format(episode)), 
+            imageio.mimsave(os.path.join(model_dir, 'episode-{}.gif'.format(episode)),
                             frames, duration=.04)
 
     env.close()
