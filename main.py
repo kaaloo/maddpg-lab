@@ -10,9 +10,6 @@ from tensorboardX import SummaryWriter
 import os
 from utilities import transpose_list, transpose_to_tensor
 
-# keep training awake
-from workspace_utils import keep_awake
-
 # for saving gif
 import imageio
 
@@ -79,8 +76,7 @@ def main():
 
     timer = pb.ProgressBar(widgets=widget, maxval=number_of_episodes).start()
 
-    # use keep_awake to keep workspace from disconnecting
-    for episode in keep_awake(range(0, number_of_episodes, parallel_envs)):
+    for episode in range(0, number_of_episodes, parallel_envs):
 
         timer.update(episode)
 
