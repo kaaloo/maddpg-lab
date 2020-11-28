@@ -32,7 +32,7 @@ def pre_process(entity, batchsize):
 def main():
     seeding()
     # number of parallel agents
-    parallel_envs = 8
+    parallel_envs = 4
     # number of training episodes.
     # change this to higher number to experiment. say 30000.
     number_of_episodes = 1000

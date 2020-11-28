@@ -6,6 +6,7 @@ from multiprocessing import Process, Pipe
 from baselines.common.vec_env import VecEnv, CloudpickleWrapper
 from baselines.common.tile_images import tile_images
 
+
 def worker(remote, parent_remote, env_fn_wrapper):
     parent_remote.close()
     env = env_fn_wrapper.x()
@@ -50,9 +51,9 @@ class SubprocVecEnv(VecEnv):
         nenvs = len(env_fns)
         self.remotes, self.work_remotes = zip(*[Pipe() for _ in range(nenvs)])
         self.ps = [Process(target=worker, args=(work_remote, remote, CloudpickleWrapper(env_fn)))
-            for (work_remote, remote, env_fn) in zip(self.work_remotes, self.remotes, env_fns)]
+                   for (work_remote, remote, env_fn) in zip(self.work_remotes, self.remotes, env_fns)]
         for p in self.ps:
-            p.daemon = True # if the main process crashes, we should not cause things to hang
+            p.daemon = True  # if the main process crashes, we should not cause things to hang
             p.start()
         for remote in self.work_remotes:
             remote.close()
@@ -101,7 +102,9 @@ class SubprocVecEnv(VecEnv):
         # TODO: need to clean up
         for pipe in self.remotes:
             pipe.send(('render', None))
-        imgs = [pipe.recv() for pipe in self.remotes]
+        imgs = np.asarray([pipe.recv() for pipe in self.remotes])
+        # tile_images expects a 4 dimensional shape
+        imgs = np.squeeze(imgs)
         bigimg = tile_images(imgs)
         if mode == 'human':
             import cv2
@@ -113,12 +116,12 @@ class SubprocVecEnv(VecEnv):
             raise NotImplementedError
 
 
-
 class DummyVecEnv(VecEnv):
     def __init__(self, env_fns):
         self.envs = [fn() for fn in env_fns]
         env = self.envs[0]
-        VecEnv.__init__(self, len(env_fns), env.observation_space, env.action_space)
+        VecEnv.__init__(self, len(env_fns),
+                        env.observation_space, env.action_space)
         if all([hasattr(a, 'adversary') for a in env.agents]):
             self.agent_types = ['adversary' if a.adversary else 'agent' for a in
                                 env.agents]
@@ -131,7 +134,7 @@ class DummyVecEnv(VecEnv):
         self.actions = actions
 
     def step_wait(self):
-        results = [env.step(a) for (a,env) in zip(self.actions, self.envs)]
+        results = [env.step(a) for (a, env) in zip(self.actions, self.envs)]
         obs, obs_full, rews, dones, infos = map(np.array, zip(*results))
         self.ts += 1
         for (i, done) in enumerate(dones):
