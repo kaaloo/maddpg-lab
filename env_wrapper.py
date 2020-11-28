@@ -102,16 +102,16 @@ class SubprocVecEnv(VecEnv):
         # TODO: need to clean up
         for pipe in self.remotes:
             pipe.send(('render', None))
-        imgs = np.asarray([pipe.recv() for pipe in self.remotes])
+        imgs = np.asarray([pipe.recv() for pipe in self.remotes], dtype=np.uint8)
         # tile_images expects a 4 dimensional shape
-        imgs = np.squeeze(imgs)
+        imgs = np.squeeze(imgs, axis=1)
         bigimg = tile_images(imgs)
         if mode == 'human':
             import cv2
             cv2.imshow('vecenv', bigimg[:, :, ::-1])
             cv2.waitKey(1)
         elif mode == 'rgb_array':
-            return bigimg
+            return bigimg.astype(np.uint8)
         else:
             raise NotImplementedError
 
