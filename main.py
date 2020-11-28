@@ -13,6 +13,8 @@ from utilities import transpose_list, transpose_to_tensor
 # for saving gif
 import imageio
 
+import pdb
+
 def seeding(seed=1):
     np.random.seed(seed)
     torch.manual_seed(seed)
@@ -168,7 +170,7 @@ def main():
                            os.path.join(model_dir, 'episode-{}.pt'.format(episode)))
 
             # save gif files
-            imageio.mimsave(os.path.join(model_dir, 'episode-{}.gif'.format(episode)),
+            imageio.mimwrite(os.path.join(model_dir, 'episode-{}.gif'.format(episode)),
                             frames, duration=.04)
 
     env.close()
